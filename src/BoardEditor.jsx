@@ -1,16 +1,14 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect, use } from "react";
+import AllocationBar from "./AllocationBar";
+import useStatsStore from "./stats";
 
 /**
  * BoardEditor (SVG)
  * - Left click: paint with selected brush (drag to paint continuously)
  * - Right click (or select "Eraser"): clear a tile / remove entities on that cell
- * - Toolbar: choose brush, resize grid, export/import JSON
- * - Props are optional; the component is fully self-contained and stylable.
  */
 
-const CELL = 44; // px size for each grid cell (visual only)
-const TILE_TYPES = ["empty", "wall", "spawn"];
-const ENTITY_TYPES = ["smallDot", "bigDot", "player", "enemy"];
+const CELL = 40; // px size for each grid cell (visual only)
 
 const PALETTE = [
   { kind: "tile", type: "wall", label: "Wall" },
@@ -21,6 +19,9 @@ const PALETTE = [
   { kind: "entity", type: "player", label: "Player" },
   { kind: "entity", type: "enemy", label: "Enemy" },
   { kind: "eraser", type: "eraser", label: "Eraser" },
+  { kind: "tile", type: "exit", label: "Exit" },
+  { kind: "tile", type: "enterPortal", label: "Portal" },
+  //   { kind: "tile", type: "exitPortal", label: "Exit Portal" },
 ];
 
 function createEmptyBoard(rows, cols) {
@@ -28,9 +29,8 @@ function createEmptyBoard(rows, cols) {
     rows,
     cols,
     tiles: Array.from({ length: rows }, () =>
-      Array.from({ length: cols }, () => "empty")
+      Array.from({ length: cols }, () => "empty"),
     ),
-    // entities: array of { type, r, c }
     entities: [],
   };
 }
@@ -49,34 +49,45 @@ function key(r, c) {
 }
 
 export default function BoardEditor({
-  initialRows = 10,
-  initialCols = 10,
+  initialRows = 15,
+  initialCols = 28,
   initialBoard = null,
   onChange,
 }) {
   const [board, setBoard] = useState(
-    initialBoard || createEmptyBoard(initialRows, initialCols)
+    initialBoard || createEmptyBoard(initialRows, initialCols),
   );
-  const [brush, setBrush] = useState(PALETTE[0]); // default "Wall"
+  const [brush, setBrush] = useState(PALETTE[0]);
   const [isPainting, setIsPainting] = useState(false);
   const [hoverCell, setHoverCell] = useState(null);
   const svgRef = useRef(null);
 
-  // Notify parent on change (if provided)
+  const { subtract } = useStatsStore();
+
+  const processInput = (e) => {
+    if (["w", "a", "s", "d"].includes(e.key.toLowerCase())) {
+      subtract("moves");
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener("keyup", processInput);
+    return () => window.removeEventListener("keyup", processInput);
+  }, []);
+
   useEffect(() => {
     if (onChange) onChange(board);
   }, [board, onChange]);
 
   const size = useMemo(
     () => ({ width: board.cols * CELL, height: board.rows * CELL }),
-    [board.cols, board.rows]
+    [board.cols, board.rows],
   );
 
   function setTile(r, c, type) {
     setBoard((prev) => {
       const next = cloneBoard(prev);
       next.tiles[r][c] = type;
-      // Clearing a tile doesn't auto-remove entities (keeps flexibility).
       return next;
     });
   }
@@ -85,10 +96,10 @@ export default function BoardEditor({
     setBoard((prev) => {
       const next = cloneBoard(prev);
       const idx = next.entities.findIndex(
-        (e) => e.r === r && e.c === c && e.type === type
+        (e) => e.r === r && e.c === c && e.type === type,
       );
       if (idx !== -1) {
-        next.entities.splice(idx, 1); // remove existing
+        next.entities.splice(idx, 1);
       } else {
         next.entities.push({ type, r, c });
       }
@@ -116,7 +127,6 @@ export default function BoardEditor({
     }
   }
 
-  // Painting via transparent per-cell hit rectangles (simple & reliable)
   function CellHit({ r, c }) {
     const x = c * CELL;
     const y = r * CELL;
@@ -126,7 +136,7 @@ export default function BoardEditor({
         y={y}
         width={CELL}
         height={CELL}
-        fill='transparent'
+        fill="transparent"
         onMouseDown={(e) => {
           e.preventDefault();
           setIsPainting(true);
@@ -152,7 +162,6 @@ export default function BoardEditor({
     return () => window.removeEventListener("mouseup", up);
   }, []);
 
-  // Toolbar helpers
   const [rowsInput, setRowsInput] = useState(board.rows);
   const [colsInput, setColsInput] = useState(board.cols);
   function resizeBoard() {
@@ -160,7 +169,6 @@ export default function BoardEditor({
     const c = Math.max(1, parseInt(colsInput || 1, 10));
     setBoard((prev) => {
       const next = createEmptyBoard(r, c);
-      // copy overlap area from previous board
       const rr = Math.min(prev.rows, r);
       const cc = Math.min(prev.cols, c);
       for (let i = 0; i < rr; i++) {
@@ -192,7 +200,6 @@ export default function BoardEditor({
     reader.onload = () => {
       try {
         const obj = JSON.parse(reader.result);
-        // very light validation
         if (
           typeof obj?.rows === "number" &&
           typeof obj?.cols === "number" &&
@@ -213,7 +220,6 @@ export default function BoardEditor({
     reader.readAsText(file);
   }
 
-  // Colors / look (you can tweak these to match your game's palette)
   const COLORS = {
     bg: "#3f5172",
     border: "#2b3b5a",
@@ -225,9 +231,11 @@ export default function BoardEditor({
     bigDot: "#7DF6A0",
     player: "#C293F2",
     enemy: "#FF9DB4",
+    exit: "#FF2AA1",
+    enterPortal: "#FFB74D",
+    exitPortal: "#FF6F40",
   };
 
-  // Pre-index entities by cell for quick draw
   const entityByCell = useMemo(() => {
     const map = new Map();
     for (const e of board.entities) {
@@ -238,7 +246,6 @@ export default function BoardEditor({
     return map;
   }, [board.entities]);
 
-  // Single-cell overlay preview when hovering
   const hoverRect =
     hoverCell && !isPainting ? (
       <rect
@@ -247,7 +254,7 @@ export default function BoardEditor({
         width={CELL}
         height={CELL}
         fill={COLORS.hover}
-        pointerEvents='none'
+        pointerEvents="none"
       />
     ) : null;
 
@@ -255,20 +262,18 @@ export default function BoardEditor({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "260px 1fr",
-        gap: 16,
+        gridTemplateColumns: "260px 2fr 300px",
+        gap: 0,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI",
         color: "#e8eefc",
       }}
     >
-      {/* Toolbar */}
       <div
         style={{
           background: "#2d3d5b",
           border: "1px solid #22324e",
           borderRadius: 8,
           padding: 12,
-          height: "fit-content",
         }}
       >
         <h3 style={{ margin: "4px 0 12px" }}>Board Editor</h3>
@@ -279,20 +284,20 @@ export default function BoardEditor({
           </label>
           <div style={{ marginTop: 6 }}>
             <input
-              value={rowsInput}
-              onChange={(e) => setRowsInput(e.target.value)}
-              type='number'
-              min={1}
-              style={inputStyle}
-              placeholder='rows'
-            />
-            <input
               value={colsInput}
               onChange={(e) => setColsInput(e.target.value)}
-              type='number'
+              type="number"
               min={1}
               style={inputStyle}
-              placeholder='cols'
+              placeholder="cols"
+            />
+            <input
+              value={rowsInput}
+              onChange={(e) => setRowsInput(e.target.value)}
+              type="number"
+              min={1}
+              style={inputStyle}
+              placeholder="rows"
             />
             <button style={btnStyle} onClick={resizeBoard}>
               Resize
@@ -339,8 +344,8 @@ export default function BoardEditor({
           <label style={{ ...btnStyle, cursor: "pointer" }}>
             Import
             <input
-              type='file'
-              accept='application/json'
+              type="file"
+              accept="application/json"
               onChange={importJSON}
               style={{ display: "none" }}
             />
@@ -355,14 +360,16 @@ export default function BoardEditor({
         </p>
       </div>
 
-      {/* SVG Board */}
       <div
+        className="container"
         style={{
           background: "#2d3d5b",
           border: "1px solid #22324e",
           borderRadius: 8,
           padding: 12,
-          overflow: "auto",
+          overflow: "scroll",
+          minHeight: 600,
+          maxHeight: 600,
         }}
       >
         <svg
@@ -379,15 +386,41 @@ export default function BoardEditor({
           onMouseLeave={() => setHoverCell(null)}
         >
           <defs>
-            {/* soft vertical gradient for "spawn" look */}
-            <linearGradient id='spawnGrad' x1='0' y1='0' x2='0' y2='1'>
-              <stop offset='0%' stopColor={COLORS.spawn} stopOpacity='0.85' />
-              <stop offset='100%' stopColor={COLORS.spawn} stopOpacity='0.25' />
+            <linearGradient id="spawnGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={COLORS.spawn} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={COLORS.spawn} stopOpacity="0.25" />
+            </linearGradient>
+            <linearGradient id="exitGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={COLORS.exit} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={COLORS.exit} stopOpacity="0.25" />
+            </linearGradient>
+            <linearGradient id="exitPortalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="0%"
+                stopColor={COLORS.exitPortal}
+                stopOpacity="0.85"
+              />
+              <stop
+                offset="100%"
+                stopColor={COLORS.exitPortal}
+                stopOpacity="0.25"
+              />
+            </linearGradient>
+            <linearGradient id="enterPortalGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop
+                offset="0%"
+                stopColor={COLORS.enterPortal}
+                stopOpacity="0.85"
+              />
+              <stop
+                offset="100%"
+                stopColor={COLORS.enterPortal}
+                stopOpacity="0.25"
+              />
             </linearGradient>
           </defs>
 
-          {/* grid lines */}
-          <g stroke={COLORS.grid} strokeWidth='1'>
+          <g stroke={COLORS.grid} strokeWidth="1">
             {Array.from({ length: board.cols + 1 }, (_, i) => (
               <line
                 key={`v-${i}`}
@@ -408,19 +441,21 @@ export default function BoardEditor({
             ))}
           </g>
 
-          {/* tiles */}
           <g>
             {board.tiles.map((row, r) =>
               row.map((type, c) => {
                 if (type === "empty") return null;
                 const x = c * CELL;
                 const y = r * CELL;
-                const fill =
-                  type === "wall"
-                    ? COLORS.wall
-                    : type === "spawn"
-                    ? "url(#spawnGrad)"
-                    : "transparent";
+                const getCellFill = (type) => {
+                  if (type === "wall") return COLORS.wall;
+                  if (type === "spawn") return "url(#spawnGrad)";
+                  if (type === "exit") return "url(#exitGrad)";
+                  if (type === "enterPortal") return "url(#enterPortalGrad)";
+                  if (type === "exitPortal") return "url(#exitPortalGrad)";
+                  return "transparent";
+                };
+                const fill = getCellFill(type);
                 return (
                   <rect
                     key={`t-${r}-${c}`}
@@ -431,11 +466,10 @@ export default function BoardEditor({
                     fill={fill}
                   />
                 );
-              })
+              }),
             )}
           </g>
 
-          {/* entities */}
           <g>
             {board.entities.map((e, i) => {
               const cx = e.c * CELL + CELL / 2;
@@ -487,74 +521,107 @@ export default function BoardEditor({
             })}
           </g>
 
-          {/* hover highlight */}
           {hoverRect}
 
-          {/* hit layer for painting */}
           <g>
             {Array.from({ length: board.rows }).map((_, r) =>
               Array.from({ length: board.cols }).map((_, c) => (
                 <CellHit key={`hit-${r}-${c}`} r={r} c={c} />
-              ))
+              )),
             )}
           </g>
         </svg>
       </div>
+      <AllocationBar width={270} />
     </div>
   );
 }
 
-/* ---------- Small UI helpers ---------- */
-
 function Swatch({ kind, type, colors }) {
   return (
-    <svg width='22' height='22' viewBox='0 0 22 22' style={{ flexShrink: 0 }}>
+    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
       <rect
-        x='1'
-        y='1'
-        width='20'
-        height='20'
-        rx='3'
-        ry='3'
-        fill='#2b3b5a'
-        stroke='#1f2c45'
+        x="1"
+        y="1"
+        width="20"
+        height="20"
+        rx="3"
+        ry="3"
+        fill="#2b3b5a"
+        stroke="#1f2c45"
       />
       {kind === "tile" && type === "wall" && (
-        <rect x='3' y='3' width='16' height='16' fill={colors.wall} />
+        <rect x="3" y="3" width="16" height="16" fill={colors.wall} />
       )}
       {kind === "tile" && type === "spawn" && (
-        <rect x='3' y='3' width='16' height='16' fill='url(#swatchSpawn)' />
+        <rect x="3" y="3" width="16" height="16" fill="url(#swatchSpawn)" />
+      )}
+      {kind === "tile" && type === "exit" && (
+        <rect x="3" y="3" width="16" height="16" fill="url(#swatchExit)" />
+      )}
+      {kind === "tile" && type === "exitPortal" && (
+        <rect
+          x="3"
+          y="3"
+          width="16"
+          height="16"
+          fill="url(#swatchPortalExit)"
+        />
+      )}
+      {kind === "tile" && type === "enterPortal" && (
+        <rect
+          x="3"
+          y="3"
+          width="16"
+          height="16"
+          fill="url(#swatchPortalEnter)"
+        />
       )}
       {kind === "tile" && type === "empty" && (
-        <g stroke='#445a84' strokeWidth='1'>
-          <line x1='3' y1='7' x2='19' y2='7' />
-          <line x1='3' y1='11' x2='19' y2='11' />
-          <line x1='3' y1='15' x2='19' y2='15' />
+        <g stroke="#445a84" strokeWidth="1">
+          <line x1="3" y1="7" x2="19" y2="7" />
+          <line x1="3" y1="11" x2="19" y2="11" />
+          <line x1="3" y1="15" x2="19" y2="15" />
         </g>
       )}
       {kind === "entity" && type === "smallDot" && (
-        <circle cx='11' cy='11' r='2.8' fill={colors.smallDot} />
+        <circle cx="11" cy="11" r="2.8" fill={colors.smallDot} />
       )}
       {kind === "entity" && type === "bigDot" && (
-        <circle cx='11' cy='11' r='6' fill={colors.bigDot} />
+        <circle cx="11" cy="11" r="6" fill={colors.bigDot} />
       )}
       {kind === "entity" && type === "player" && (
-        <circle cx='11' cy='11' r='6' fill={colors.player} />
+        <circle cx="11" cy="11" r="6" fill={colors.player} />
       )}
       {kind === "entity" && type === "enemy" && (
-        <circle cx='11' cy='11' r='6' fill={colors.enemy} />
+        <circle cx="11" cy="11" r="6" fill={colors.enemy} />
       )}
       {kind === "eraser" && (
-        <g stroke='#e8eefc' strokeWidth='2'>
-          <line x1='5' y1='5' x2='17' y2='17' />
-          <line x1='17' y1='5' x2='5' y2='17' />
+        <g stroke="#e8eefc" strokeWidth="2">
+          <line x1="5" y1="5" x2="17" y2="17" />
+          <line x1="17" y1="5" x2="5" y2="17" />
         </g>
       )}
-      {/* local defs so the swatch spawn preview works */}
       <defs>
-        <linearGradient id='swatchSpawn' x1='0' y1='0' x2='0' y2='1'>
-          <stop offset='0%' stopColor={colors.spawn} stopOpacity='0.9' />
-          <stop offset='100%' stopColor={colors.spawn} stopOpacity='0.3' />
+        <linearGradient id="swatchSpawn" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={colors.spawn} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={colors.spawn} stopOpacity="0.3" />
+        </linearGradient>
+        <linearGradient id="swatchExit" x1="1" y1="1" x2="1" y2="1">
+          <stop offset="0%" stopColor={colors.exit} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={colors.exit} stopOpacity="0.3" />
+        </linearGradient>
+        <linearGradient id="swatchPortalEnter" x1="1" y1="1" x2="1" y2="1">
+          <stop offset="0%" stopColor={colors.enterPortal} stopOpacity="0.9" />
+          <stop
+            offset="100%"
+            stopColor={colors.enterPortal}
+            stopOpacity="0.3"
+          />
+        </linearGradient>
+        <linearGradient id="swatchPortalExit" x1="1" y1="1" x2="1" y2="1">
+          <stop offset="0%" stopColor={colors.exitPortal} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={colors.exitPortal} stopOpacity="0.3" />
         </linearGradient>
       </defs>
     </svg>

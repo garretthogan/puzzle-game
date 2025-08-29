@@ -1,14 +1,5 @@
 import React, { useMemo, useState } from "react";
 
-/** -----------------------------------------------------------
- * DiceRoller (SVG)
- * - Pick number of dice and sides (d6 by default).
- * - Roll all dice with the button.
- * - Click any die to re-roll just that one.
- * - History keeps last 10 rolls (sum + faces).
- * - The component is self-contained and themable via COLORS/btn/input styles.
- * ---------------------------------------------------------- */
-
 const COLORS = {
   bg: "#3f5172",
   border: "#22324e",
@@ -43,7 +34,6 @@ const inputStyle = {
 };
 
 function randInt(min, max) {
-  // inclusive
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
@@ -51,7 +41,6 @@ function rollArray(n, sides) {
   return Array.from({ length: n }, () => randInt(1, sides));
 }
 
-/* ----------- Pip helpers for a D6 face (normalized 0..100 box) ----------- */
 const pip = (x, y, r = 7) => ({ x, y, r });
 const positionsD6 = {
   1: [pip(50, 50)],
@@ -70,11 +59,9 @@ const positionsD6 = {
 };
 
 function DieSVG({ value, sides, size = 72, onClick, highlight = false }) {
-  // Render d6 with pips; otherwise render polygon label (dN)
   const view = 100;
   const edge = 10;
 
-  // For non-d6, we render an n-gon silhouette + value
   const polygon = useMemo(() => {
     const n = Math.max(3, Math.min(sides, 20));
     const cx = 50,
@@ -100,7 +87,6 @@ function DieSVG({ value, sides, size = 72, onClick, highlight = false }) {
       }}
       onClick={onClick}
     >
-      {/* die body */}
       <rect
         x={edge}
         y={edge}
@@ -112,7 +98,6 @@ function DieSVG({ value, sides, size = 72, onClick, highlight = false }) {
         stroke={COLORS.dieEdge}
         strokeWidth='3'
       />
-      {/* face */}
       {sides === 6 ? (
         <g>
           {positionsD6[value]?.map((p, i) => (
@@ -188,7 +173,6 @@ export default function DiceRoller() {
     }, 120);
   }
 
-  // update array if count changes
   function syncCount(nextCount) {
     const n = Math.max(1, Math.min(30, parseInt(nextCount || "1", 10)));
     setCount(n);
@@ -210,13 +194,11 @@ export default function DiceRoller() {
       style={{
         display: "grid",
         gridTemplateColumns: "280px 1fr",
-        gap: 16,
         fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI",
         color: COLORS.text,
-        paddingTop: 12,
+        paddingTop: 2,
       }}
     >
-      {/* Left panel / controls */}
       <div
         style={{
           background: COLORS.panel,
@@ -224,6 +206,8 @@ export default function DiceRoller() {
           borderRadius: 8,
           padding: 12,
           height: "fit-content",
+          maxHeight: 230,
+          overflow: "scroll",
         }}
       >
         <h3 style={{ margin: "4px 0 12px" }}>Dice Tray</h3>
@@ -289,7 +273,7 @@ export default function DiceRoller() {
               border: `1px solid ${COLORS.border}`,
               borderRadius: 6,
               padding: 8,
-              maxHeight: 64,
+              maxHeight: 18,
               overflow: "auto",
               fontSize: 12,
               overflowY: "scroll",
@@ -325,20 +309,20 @@ export default function DiceRoller() {
         </div>
       </div>
 
-      {/* Right panel / dice tray */}
       <div
         style={{
           background: COLORS.panel,
           border: `1px solid ${COLORS.border}`,
           borderRadius: 8,
           padding: 12,
+          maxHeight: 230,
+          overflow: "hidden",
         }}
       >
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(78px, 1fr))",
-            gap: 12,
           }}
         >
           {faces.map((v, i) => (
