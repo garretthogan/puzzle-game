@@ -49,7 +49,7 @@ function key(r, c) {
 }
 
 export default function BoardEditor({
-  initialRows = 14,
+  initialRows = 10,
   initialCols = 10,
   initialBoard = null,
   onChange,
