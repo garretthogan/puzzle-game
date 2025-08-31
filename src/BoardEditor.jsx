@@ -41,6 +41,7 @@ export default function BoardEditor({}) {
     clearCell,
     movePlayer,
     importJSONBoard,
+    reset,
   } = useBoardStore();
 
   const { subtract } = useStatsStore();
@@ -113,6 +114,7 @@ export default function BoardEditor({}) {
   function resizeBoard() {
     const r = Math.max(1, parseInt(rowsInput || 1, 10));
     const c = Math.max(1, parseInt(colsInput || 1, 10));
+    reset(r, c);
   }
 
   function exportJSON() {
