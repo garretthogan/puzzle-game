@@ -1,0 +1,132 @@
+{
+  "rows": 9,
+  "cols": 9,
+  "tiles": [
+    [
+      "enterPortal",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "spawn"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "empty",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "empty"
+    ],
+    [
+      "exit",
+      "empty",
+      "empty",
+      "empty",
+      "wall",
+      "empty",
+      "empty",
+      "empty",
+      "enterPortal"
+    ]
+  ],
+  "entities": [
+    {
+      "r": 3,
+      "c": 1,
+      "type": "enemy"
+    },
+    {
+      "r": 5,
+      "c": 3,
+      "type": "enemy"
+    },
+    {
+      "r": 5,
+      "c": 5,
+      "type": "enemy"
+    },
+    {
+      "r": 2,
+      "c": 8,
+      "type": "enemy"
+    },
+    {
+      "r": 0,
+      "c": 8,
+      "type": "player"
+    }
+  ]
+}

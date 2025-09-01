@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import usePortalStore from './portals';
 
 function createEmptyBoard(rows, cols) {
   return {
@@ -98,8 +99,8 @@ const useBoardStore = create(set => ({
     let moveR = 0,
       moveC = 0;
     if (Math.abs(dr) <= 1 || Math.abs(dc) <= 1) {
-      // 30% chance to move towards player, 70% away
-      const towardsChance = 0.3;
+      // 100% chance to move towards player
+      const towardsChance = 1.0;
       if (Math.random() < towardsChance) {
         moveR = dr === 0 ? 0 : dr > 0 ? 1 : -1;
         moveC = dc === 0 ? 0 : dc > 0 ? 1 : -1;
@@ -172,8 +173,28 @@ const useBoardStore = create(set => ({
         newR >= 0 &&
         newR < rows &&
         newC >= 0 &&
-        newC < cols
+        newC < cols &&
+        (next.tiles[newR][newC] === 'empty' || next.tiles[newR][newC] === 'enterPortal')
       ) {
+        // If stepping onto an enterPortal, check for linked portal
+        if (next.tiles[newR][newC] === 'enterPortal') {
+          try {
+            // const usePortalStore = require('./portals').default;
+            const { connections } = usePortalStore.getState();
+
+            if (connections) {
+              const [linkR, linkC] = connections[`${newR},${newC}`]
+                .split(',')
+                .map(Number);
+              next.entities = next.entities.filter(e => e !== player);
+              next.entities.push({ ...player, r: linkR, c: linkC });
+              return { ...next };
+            }
+          } catch (err) {
+            console.error('Error getting linked portal:', err);
+            // fallback: just move to portal
+          }
+        }
         next.entities = next.entities.filter(e => e !== player);
         next.entities.push({ ...player, r: newR, c: newC });
       }
