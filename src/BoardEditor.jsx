@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState, useEffect, use } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import AllocationBar from './AllocationBar';
 import useStatsStore from './stats';
 import useBoardStore from './board';
+import usePortalStore from './portals';
 
 /**
  * BoardEditor (SVG)
@@ -31,6 +32,8 @@ export default function BoardEditor({}) {
   const [hoverCell, setHoverCell] = useState(null);
   const svgRef = useRef(null);
 
+  const { linkPortal, connections } = usePortalStore();
+
   const {
     rows,
     cols,
@@ -49,10 +52,14 @@ export default function BoardEditor({}) {
   const processInput = e => {
     if (['w', 'a', 's', 'd'].includes(e.key.toLowerCase())) {
       subtract('moves');
-      if (e.key === 'w') movePlayer(0, -1);
-      if (e.key === 'a') movePlayer(-1, 0);
-      if (e.key === 's') movePlayer(0, 1);
-      if (e.key === 'd') movePlayer(1, 0);
+      let dx = 0,
+        dy = 0;
+      if (e.key === 'w') dy = -1;
+      if (e.key === 'a') dx = -1;
+      if (e.key === 's') dy = 1;
+      if (e.key === 'd') dx = 1;
+
+      movePlayer(dx, dy);
     }
   };
 
@@ -77,6 +84,15 @@ export default function BoardEditor({}) {
   function CellHit({ r, c }) {
     const x = c * CELL;
     const y = r * CELL;
+    // Check if another portal exists
+    const otherPortals = [];
+    for (let rr = 0; rr < rows; rr++) {
+      for (let cc = 0; cc < cols; cc++) {
+        if ((rr !== r || cc !== c) && tiles[rr][cc] === 'enterPortal') {
+          otherPortals.push({ r: rr, c: cc });
+        }
+      }
+    }
     return (
       <rect
         x={x}
@@ -86,8 +102,27 @@ export default function BoardEditor({}) {
         fill="transparent"
         onMouseDown={e => {
           e.preventDefault();
-          setIsPainting(true);
-          applyBrush(r, c);
+          // If clicking an enterPortal and another portal exists, prompt for link
+          if (tiles[r][c] === 'enterPortal' && otherPortals.length > 0) {
+            const coords = window.prompt(
+              `Link this portal to which coordinates? (format: row,col)\nAvailable: ${otherPortals.map(p => `${p.r},${p.c}`).join(' | ')}`
+            );
+            // You can add logic here to store the link, e.g. in a portalLinks state or on the board
+            // For now, just log the result
+            if (coords) {
+              console.log(`Portal at (${r},${c}) linked to:`, coords);
+              linkPortal(
+                { r, c },
+                {
+                  r: parseInt(coords.split(',')[0], 10),
+                  c: parseInt(coords.split(',')[1], 10),
+                }
+              );
+            }
+          } else {
+            setIsPainting(true);
+            applyBrush(r, c);
+          }
         }}
         onMouseEnter={() => setHoverCell({ r, c })}
         onMouseMove={e => {
